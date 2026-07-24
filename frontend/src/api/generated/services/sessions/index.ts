@@ -21,6 +21,7 @@ import type {
 	AuthtypesPostableEmailPasswordSessionDTO,
 	AuthtypesPostableRotateTokenDTO,
 	CreateSessionByEmailPassword200,
+	CreateSessionByFeishuCallback303,
 	CreateSessionByGoogleCallback303,
 	CreateSessionByOIDCCallback303,
 	CreateSessionBySAMLCallback303,
@@ -33,6 +34,93 @@ import type {
 
 import { GeneratedAPIInstance } from '../../../generatedAPIInstance';
 import type { ErrorType, BodyType } from '../../../generatedAPIInstance';
+
+/**
+ * This endpoint creates a session for a user using feishu callback
+ * @summary Create session by feishu callback
+ */
+export const createSessionByFeishuCallback = (signal?: AbortSignal) => {
+	return GeneratedAPIInstance<unknown>({
+		url: `/api/v1/complete/feishu`,
+		method: 'GET',
+		signal,
+	});
+};
+
+export const getCreateSessionByFeishuCallbackQueryKey = () => {
+	return [`/api/v1/complete/feishu`] as const;
+};
+
+export const getCreateSessionByFeishuCallbackQueryOptions = <
+	TData = Awaited<ReturnType<typeof createSessionByFeishuCallback>>,
+	TError = ErrorType<CreateSessionByFeishuCallback303 | RenderErrorResponseDTO>,
+>(options?: {
+	query?: UseQueryOptions<
+		Awaited<ReturnType<typeof createSessionByFeishuCallback>>,
+		TError,
+		TData
+	>;
+}) => {
+	const { query: queryOptions } = options ?? {};
+
+	const queryKey =
+		queryOptions?.queryKey ?? getCreateSessionByFeishuCallbackQueryKey();
+
+	const queryFn: QueryFunction<
+		Awaited<ReturnType<typeof createSessionByFeishuCallback>>
+	> = ({ signal }) => createSessionByFeishuCallback(signal);
+
+	return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+		Awaited<ReturnType<typeof createSessionByFeishuCallback>>,
+		TError,
+		TData
+	> & { queryKey: QueryKey };
+};
+
+export type CreateSessionByFeishuCallbackQueryResult = NonNullable<
+	Awaited<ReturnType<typeof createSessionByFeishuCallback>>
+>;
+export type CreateSessionByFeishuCallbackQueryError = ErrorType<
+	CreateSessionByFeishuCallback303 | RenderErrorResponseDTO
+>;
+
+/**
+ * @summary Create session by feishu callback
+ */
+
+export function useCreateSessionByFeishuCallback<
+	TData = Awaited<ReturnType<typeof createSessionByFeishuCallback>>,
+	TError = ErrorType<CreateSessionByFeishuCallback303 | RenderErrorResponseDTO>,
+>(options?: {
+	query?: UseQueryOptions<
+		Awaited<ReturnType<typeof createSessionByFeishuCallback>>,
+		TError,
+		TData
+	>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+	const queryOptions = getCreateSessionByFeishuCallbackQueryOptions(options);
+
+	const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+		queryKey: QueryKey;
+	};
+
+	return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create session by feishu callback
+ */
+export const invalidateCreateSessionByFeishuCallback = async (
+	queryClient: QueryClient,
+	options?: InvalidateOptions,
+): Promise<QueryClient> => {
+	await queryClient.invalidateQueries(
+		{ queryKey: getCreateSessionByFeishuCallbackQueryKey() },
+		options,
+	);
+
+	return queryClient;
+};
 
 /**
  * This endpoint creates a session for a user using google callback

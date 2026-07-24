@@ -1,4 +1,5 @@
 import {
+	AuthtypesFeishuConfigDTO,
 	AuthtypesGettableAuthDomainDTO,
 	AuthtypesGoogleConfigDTO,
 	AuthtypesOIDCConfigDTO,
@@ -16,6 +17,7 @@ export interface FormValues {
 	};
 	samlConfig?: AuthtypesSamlConfigDTO;
 	oidcConfig?: AuthtypesOIDCConfigDTO;
+	feishuConfig?: AuthtypesFeishuConfigDTO;
 	roleMapping?: AuthtypesRoleMappingDTO & {
 		groupMappingsList?: Array<{ groupName?: string; role?: string }>;
 	};
@@ -119,6 +121,7 @@ export function prepareInitialValues(
 		ssoType: config.ssoType,
 		samlConfig: config.samlConfig ?? undefined,
 		oidcConfig: config.oidcConfig ?? undefined,
+		feishuConfig: config.feishuConfig ?? undefined,
 		googleAuthConfig: config.googleAuthConfig
 			? {
 					...config.googleAuthConfig,

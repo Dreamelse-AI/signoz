@@ -62,6 +62,24 @@ export const mockOidcAuthDomain: AuthtypesGettableAuthDomainDTO = {
 	},
 };
 
+// Mock Auth Domain with Feishu
+export const mockFeishuAuthDomain: AuthtypesGettableAuthDomainDTO = {
+	id: 'domain-9',
+	name: 'feishu-corp.com',
+	config: {
+		ssoEnabled: true,
+		ssoType: AuthtypesAuthNProviderDTO.feishu,
+		feishuConfig: {
+			clientId: 'cli_feishu_app_id',
+			clientSecret: 'feishu-app-secret',
+			useLark: false,
+		},
+	},
+	authNProviderInfo: {
+		relayStatePath: 'api/v1/sso/relay/domain-9',
+	},
+};
+
 // Mock Auth Domain with Role Mapping
 export const mockDomainWithRoleMapping: AuthtypesGettableAuthDomainDTO = {
 	id: 'domain-4',

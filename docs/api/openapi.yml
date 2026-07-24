@@ -468,7 +468,10 @@ components:
       - $ref: '#/components/schemas/AuthtypesSamlConfig'
       - $ref: '#/components/schemas/AuthtypesGoogleConfig'
       - $ref: '#/components/schemas/AuthtypesOIDCConfig'
+      - $ref: '#/components/schemas/AuthtypesFeishuConfig'
       properties:
+        feishuConfig:
+          $ref: '#/components/schemas/AuthtypesFeishuConfig'
         googleAuthConfig:
           $ref: '#/components/schemas/AuthtypesGoogleConfig'
         oidcConfig:
@@ -488,6 +491,7 @@ components:
       - saml
       - email_password
       - oidc
+      - feishu
       type: string
     AuthtypesAuthNProviderInfo:
       properties:
@@ -521,6 +525,15 @@ components:
           type: string
       required:
       - id
+      type: object
+    AuthtypesFeishuConfig:
+      properties:
+        clientId:
+          type: string
+        clientSecret:
+          type: string
+        useLark:
+          type: boolean
       type: object
     AuthtypesGettableAuthDomain:
       properties:
@@ -10042,6 +10055,47 @@ paths:
       summary: Get service
       tags:
       - cloudintegration
+  /api/v1/complete/feishu:
+    get:
+      deprecated: false
+      description: This endpoint creates a session for a user using feishu callback
+      operationId: CreateSessionByFeishuCallback
+      responses:
+        "303":
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AuthtypesGettableToken'
+                  status:
+                    type: string
+                required:
+                - status
+                - data
+                type: object
+          description: See Other
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RenderErrorResponse'
+          description: Bad Request
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RenderErrorResponse'
+          description: Not Found
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RenderErrorResponse'
+          description: Internal Server Error
+      summary: Create session by feishu callback
+      tags:
+      - sessions
   /api/v1/complete/google:
     get:
       deprecated: false

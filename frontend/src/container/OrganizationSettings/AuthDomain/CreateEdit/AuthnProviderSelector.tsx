@@ -23,6 +23,13 @@ function getAuthNProviders(samlEnabled: boolean): AuthNProvider[] {
 			enabled: true,
 		},
 		{
+			key: AuthtypesAuthNProviderDTO.feishu,
+			title: 'Feishu Authentication',
+			description: 'Let members sign-in with a Feishu (Lark) account',
+			icon: <Key size={37} />,
+			enabled: true,
+		},
+		{
 			key: AuthtypesAuthNProviderDTO.saml,
 			title: 'SAML Authentication',
 			description:

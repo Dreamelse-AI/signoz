@@ -29,6 +29,7 @@ import {
 	FormValues,
 	prepareInitialValues,
 } from './CreateEdit.utils';
+import ConfigureFeishuAuthnProvider from './Providers/AuthnFeishu';
 import ConfigureGoogleAuthAuthnProvider from './Providers/AuthnGoogleAuth';
 import ConfigureOIDCAuthnProvider from './Providers/AuthnOIDC';
 import ConfigureSAMLAuthnProvider from './Providers/AuthnSAML';
@@ -45,6 +46,8 @@ function configureAuthnProvider(
 			return <ConfigureGoogleAuthAuthnProvider isCreate={isCreate} />;
 		case 'oidc':
 			return <ConfigureOIDCAuthnProvider isCreate={isCreate} />;
+		case 'feishu':
+			return <ConfigureFeishuAuthnProvider isCreate={isCreate} />;
 		default:
 			return <ConfigureGoogleAuthAuthnProvider isCreate={isCreate} />;
 	}
@@ -162,6 +165,7 @@ function CreateOrEdit(props: CreateOrEditProps): JSX.Element {
 		const googleAuthConfig = getGoogleAuthConfig();
 		const samlConfig = form.getFieldValue('samlConfig');
 		const oidcConfig = form.getFieldValue('oidcConfig');
+		const feishuConfig = form.getFieldValue('feishuConfig');
 		const roleMapping = getRoleMapping();
 
 		if (isCreate) {
@@ -175,6 +179,7 @@ function CreateOrEdit(props: CreateOrEditProps): JSX.Element {
 							googleAuthConfig,
 							samlConfig,
 							oidcConfig,
+							feishuConfig,
 							roleMapping,
 						},
 					},
@@ -202,6 +207,7 @@ function CreateOrEdit(props: CreateOrEditProps): JSX.Element {
 							googleAuthConfig,
 							samlConfig,
 							oidcConfig,
+							feishuConfig,
 							roleMapping,
 						},
 					},
