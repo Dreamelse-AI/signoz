@@ -39,6 +39,11 @@ const (
 	larkUserInfoURL  string = "https://open.larksuite.com/open-apis/authen/v1/user_info"
 
 	maxResponseBytes int64 = 1 << 20
+
+	// feishuLocalPart prefixes the synthesized address of a feishu user with no
+	// email, so such accounts are recognizable in the user list and can never be
+	// confused with a real mailbox.
+	feishuLocalPart string = "feishu-"
 )
 
 var _ authn.CallbackAuthN = (*AuthN)(nil)
@@ -153,30 +158,32 @@ func (a *AuthN) HandleCallback(ctx context.Context, query url.Values) (*authtype
 		return nil, err
 	}
 
-	// Feishu returns an email only when the app has been granted the email
-	// scopes and the user has one configured. Prefer the enterprise email since
-	// it is the one belonging to the org domain.
+	// Authorization is delegated entirely to the feishu app: reaching this point
+	// means feishu issued a code for this user against our client_id, so the user
+	// is inside the app's visibility scope. Neither the presence of an email nor
+	// its domain is used as a gate — the app's own member scope is the policy.
+	//
+	// The email is still needed as the local identity key (signoz keys users by
+	// email), so prefer the enterprise email, fall back to the personal one, and
+	// finally synthesize a stable address from the immutable open_id.
 	rawEmail := userInfo.Data.EnterpriseEmail
 	if rawEmail == "" {
 		rawEmail = userInfo.Data.Email
 	}
 
 	if rawEmail == "" {
-		a.settings.Logger().ErrorContext(ctx, "feishu: no email in user info", slog.String("open_id", userInfo.Data.OpenID))
-		return nil, errors.New(errors.TypeForbidden, errors.CodeForbidden, "feishu: no email found in user info, ensure the app has email scopes and the user has an enterprise email configured")
+		if userInfo.Data.OpenID == "" {
+			a.settings.Logger().ErrorContext(ctx, "feishu: user info carries neither email nor open_id")
+			return nil, errors.New(errors.TypeForbidden, errors.CodeForbidden, "feishu: user info carries neither email nor open_id")
+		}
+
+		rawEmail = syntheticEmail(userInfo.Data.OpenID, authDomain.StorableAuthDomain().Name)
+		a.settings.Logger().InfoContext(ctx, "feishu: no email in user info, using synthesized address", slog.String("open_id", userInfo.Data.OpenID), slog.String("email", rawEmail))
 	}
 
 	email, err := valuer.NewEmail(rawEmail)
 	if err != nil {
 		return nil, errors.Newf(errors.TypeInvalidInput, errors.CodeInvalidInput, "feishu: failed to parse email").WithAdditional(err.Error())
-	}
-
-	// Feishu has no equivalent of google's hd claim, so enforce that the email
-	// belongs to the auth domain. Otherwise any feishu tenant user could log in
-	// (and get provisioned) via this domain.
-	if domain := emailDomain(email.StringValue()); domain != authDomain.StorableAuthDomain().Name {
-		a.settings.Logger().ErrorContext(ctx, "feishu: unexpected email domain", slog.String("expected", authDomain.StorableAuthDomain().Name), slog.String("actual", domain))
-		return nil, errors.Newf(errors.TypeForbidden, errors.CodeForbidden, "feishu: unexpected email domain")
 	}
 
 	name := userInfo.Data.Name
@@ -297,10 +304,10 @@ func (a *AuthN) redirectURL(siteURL *url.URL) string {
 	}).String()
 }
 
-func emailDomain(email string) string {
-	if at := strings.LastIndex(email, "@"); at >= 0 {
-		return email[at+1:]
-	}
-
-	return ""
+// syntheticEmail builds the local identity key for a feishu user who has no
+// email at all. open_id is stable per (app, user), so the same person keeps the
+// same signoz account across logins. The address is namespaced under the auth
+// domain so it can never collide with a real mailbox in that domain.
+func syntheticEmail(openID string, authDomainName string) string {
+	return feishuLocalPart + strings.ToLower(openID) + "@" + strings.ToLower(authDomainName)
 }

@@ -48,13 +48,14 @@ type fakeFeishu struct {
 	userInfoName            string
 	userInfoEmail           string
 	userInfoEnterpriseEmail string
+	userInfoOpenID          string
 	userInfoAuthorization   string
 }
 
 func newFakeFeishu(t *testing.T) *fakeFeishu {
 	t.Helper()
 
-	fake := &fakeFeishu{accessToken: "u-access-token"}
+	fake := &fakeFeishu{accessToken: "u-access-token", userInfoOpenID: "ou_test"}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /token", func(rw http.ResponseWriter, req *http.Request) {
@@ -84,7 +85,7 @@ func newFakeFeishu(t *testing.T) *fakeFeishu {
 			"en_name":          fake.userInfoName,
 			"email":            fake.userInfoEmail,
 			"enterprise_email": fake.userInfoEnterpriseEmail,
-			"open_id":          "ou_test",
+			"open_id":          fake.userInfoOpenID,
 		}}))
 	})
 
@@ -249,27 +250,62 @@ func TestHandleCallbackPrefersEnterpriseEmail(t *testing.T) {
 	assert.Equal(t, "corp@example.com", identity.Email.StringValue())
 }
 
+// A user the app authorized but who has no mailbox gets a stable synthesized
+// identity derived from open_id, rather than being rejected.
 func TestHandleCallbackWithoutEmail(t *testing.T) {
 	authDomain := newFeishuAuthDomain(t, "example.com", false)
 	fake := newFakeFeishu(t)
 
 	authN := newAuthN(t, authDomain, fake)
 
-	_, err := authN.HandleCallback(context.Background(), callbackQuery(authDomain, siteURL(t)))
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "no email found in user info")
+	identity, err := authN.HandleCallback(context.Background(), callbackQuery(authDomain, siteURL(t)))
+	require.NoError(t, err)
+	assert.Equal(t, "feishu-ou_test@example.com", identity.Email.StringValue())
 }
 
-func TestHandleCallbackWithMismatchedEmailDomain(t *testing.T) {
+// The synthesized address must be stable across logins, otherwise the same
+// person would be provisioned as a new signoz user on every sign-in.
+func TestHandleCallbackWithoutEmailIsStable(t *testing.T) {
 	authDomain := newFeishuAuthDomain(t, "example.com", false)
 	fake := newFakeFeishu(t)
-	fake.userInfoEnterpriseEmail = "intruder@other.com"
+
+	authN := newAuthN(t, authDomain, fake)
+
+	first, err := authN.HandleCallback(context.Background(), callbackQuery(authDomain, siteURL(t)))
+	require.NoError(t, err)
+
+	second, err := authN.HandleCallback(context.Background(), callbackQuery(authDomain, siteURL(t)))
+	require.NoError(t, err)
+
+	assert.Equal(t, first.Email.StringValue(), second.Email.StringValue())
+}
+
+// Authorization is the feishu app's member scope, not the mail domain: a user
+// whose mailbox lives outside the org domain is admitted with their real email.
+func TestHandleCallbackWithForeignEmailDomain(t *testing.T) {
+	authDomain := newFeishuAuthDomain(t, "example.com", false)
+	fake := newFakeFeishu(t)
+	fake.userInfoEnterpriseEmail = "contractor@other.com"
+
+	authN := newAuthN(t, authDomain, fake)
+
+	identity, err := authN.HandleCallback(context.Background(), callbackQuery(authDomain, siteURL(t)))
+	require.NoError(t, err)
+	assert.Equal(t, "contractor@other.com", identity.Email.StringValue())
+}
+
+// open_id is the last resort for identity; without it there is nothing stable to
+// key the account on, so the login must fail rather than collide accounts.
+func TestHandleCallbackWithoutEmailAndOpenID(t *testing.T) {
+	authDomain := newFeishuAuthDomain(t, "example.com", false)
+	fake := newFakeFeishu(t)
+	fake.userInfoOpenID = ""
 
 	authN := newAuthN(t, authDomain, fake)
 
 	_, err := authN.HandleCallback(context.Background(), callbackQuery(authDomain, siteURL(t)))
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unexpected email domain")
+	assert.Contains(t, err.Error(), "neither email nor open_id")
 }
 
 func TestHandleCallbackWithTokenError(t *testing.T) {
