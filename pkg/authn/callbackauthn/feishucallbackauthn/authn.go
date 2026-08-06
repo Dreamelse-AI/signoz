@@ -44,6 +44,12 @@ const (
 	// email, so such accounts are recognizable in the user list and can never be
 	// confused with a real mailbox.
 	feishuLocalPart string = "feishu-"
+
+	// feishuSyntheticDomain backs the synthesized address when the auth domain
+	// name cannot carry one. Auth domain names accept a single label ("feishu"),
+	// but an address needs a dotted domain to pass email validation, so such a
+	// name would otherwise lock every mailbox-less user out.
+	feishuSyntheticDomain string = "feishu.local"
 )
 
 var _ authn.CallbackAuthN = (*AuthN)(nil)
@@ -309,5 +315,10 @@ func (a *AuthN) redirectURL(siteURL *url.URL) string {
 // same signoz account across logins. The address is namespaced under the auth
 // domain so it can never collide with a real mailbox in that domain.
 func syntheticEmail(openID string, authDomainName string) string {
-	return feishuLocalPart + strings.ToLower(openID) + "@" + strings.ToLower(authDomainName)
+	domain := strings.ToLower(authDomainName)
+	if !strings.Contains(domain, ".") {
+		domain = feishuSyntheticDomain
+	}
+
+	return feishuLocalPart + strings.ToLower(openID) + "@" + domain
 }

@@ -294,6 +294,20 @@ func TestHandleCallbackWithForeignEmailDomain(t *testing.T) {
 	assert.Equal(t, "contractor@other.com", identity.Email.StringValue())
 }
 
+// Auth domain names may be a single label ("feishu"), but an email address needs
+// a dotted domain: synthesizing against the raw name there would produce an
+// address that fails validation and lock every mailbox-less user out.
+func TestHandleCallbackWithoutEmailOnSingleLabelDomain(t *testing.T) {
+	authDomain := newFeishuAuthDomain(t, "feishu", false)
+	fake := newFakeFeishu(t)
+
+	authN := newAuthN(t, authDomain, fake)
+
+	identity, err := authN.HandleCallback(context.Background(), callbackQuery(authDomain, siteURL(t)))
+	require.NoError(t, err)
+	assert.Equal(t, "feishu-ou_test@feishu.local", identity.Email.StringValue())
+}
+
 // open_id is the last resort for identity; without it there is nothing stable to
 // key the account on, so the login must fail rather than collide accounts.
 func TestHandleCallbackWithoutEmailAndOpenID(t *testing.T) {

@@ -3,6 +3,7 @@ package implsession
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/SigNoz/signoz/pkg/errors"
 	"github.com/SigNoz/signoz/pkg/modules/authdomain"
@@ -83,6 +84,25 @@ func TestGetDomainAuthNAgnosticAuthDomainSkipsDisabledSSO(t *testing.T) {
 	got, err := module.getDomainAuthNAgnosticAuthDomain(context.Background(), valuer.GenerateUUID())
 	require.NoError(t, err)
 	assert.Nil(t, got)
+}
+
+// ListByOrgID returns rows unordered, so two feishu domains in one org would
+// otherwise hand out a different client_id per request — an intermittent login
+// failure that is painful to diagnose. The oldest one must always win.
+func TestGetDomainAuthNAgnosticAuthDomainIsDeterministic(t *testing.T) {
+	older := newAuthDomain(t, "older.com", authtypes.AuthNProviderFeishu, true)
+	newer := newAuthDomain(t, "newer.com", authtypes.AuthNProviderFeishu, true)
+	older.StorableAuthDomain().CreatedAt = time.Unix(1000, 0)
+	newer.StorableAuthDomain().CreatedAt = time.Unix(2000, 0)
+
+	for _, authDomains := range [][]*authtypes.AuthDomain{{older, newer}, {newer, older}} {
+		module := newModuleWithAuthDomains(&stubAuthDomainModule{authDomains: authDomains})
+
+		got, err := module.getDomainAuthNAgnosticAuthDomain(context.Background(), valuer.GenerateUUID())
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		assert.Equal(t, older.StorableAuthDomain().ID, got.StorableAuthDomain().ID)
+	}
 }
 
 // No auth domain at all is the plain password-login deployment: the caller falls

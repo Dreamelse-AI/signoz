@@ -253,14 +253,30 @@ func (module *module) getDomainAuthNAgnosticAuthDomain(ctx context.Context, orgI
 		return nil, err
 	}
 
+	candidates := make([]*authtypes.AuthDomain, 0, len(authDomains))
 	for _, authDomain := range authDomains {
 		config := authDomain.AuthDomainConfig()
 		if config.SSOEnabled && config.AuthNProvider == authtypes.AuthNProviderFeishu {
-			return authDomain, nil
+			candidates = append(candidates, authDomain)
 		}
 	}
 
-	return nil, nil
+	if len(candidates) == 0 {
+		return nil, nil
+	}
+
+	// ListByOrgID does not order its rows, so an org holding more than one feishu
+	// domain would otherwise hand out a different client_id per request and look
+	// like an intermittent login failure. Pick the oldest one deterministically.
+	slices.SortFunc(candidates, func(a, b *authtypes.AuthDomain) int {
+		if diff := a.StorableAuthDomain().CreatedAt.Compare(b.StorableAuthDomain().CreatedAt); diff != 0 {
+			return diff
+		}
+
+		return strings.Compare(a.StorableAuthDomain().ID.String(), b.StorableAuthDomain().ID.String())
+	})
+
+	return candidates[0], nil
 }
 
 func getProvider[T authn.AuthN](authNProvider authtypes.AuthNProvider, authNs map[authtypes.AuthNProvider]authn.AuthN) (T, error) {
