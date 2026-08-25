@@ -1952,6 +1952,21 @@ export interface AuthtypesOIDCConfigDTO {
 	issuerAlias?: string;
 }
 
+export interface AuthtypesFeishuConfigDTO {
+	/**
+	 * @type string
+	 */
+	clientId?: string;
+	/**
+	 * @type string
+	 */
+	clientSecret?: string;
+	/**
+	 * @type boolean
+	 */
+	useLark?: boolean;
+}
+
 export type AuthtypesRoleMappingDTOGroupMappingsAnyOf = {
 	[key: string]: string;
 };
@@ -1982,9 +1997,11 @@ export enum AuthtypesAuthNProviderDTO {
 	saml = 'saml',
 	email_password = 'email_password',
 	oidc = 'oidc',
+	feishu = 'feishu',
 }
 export type AuthtypesAuthDomainConfigDTO =
 	| (AuthtypesSamlConfigDTO & {
+			feishuConfig?: AuthtypesFeishuConfigDTO;
 			googleAuthConfig?: AuthtypesGoogleConfigDTO;
 			oidcConfig?: AuthtypesOIDCConfigDTO;
 			roleMapping?: AuthtypesRoleMappingDTO;
@@ -1996,6 +2013,7 @@ export type AuthtypesAuthDomainConfigDTO =
 			ssoType?: AuthtypesAuthNProviderDTO;
 	  })
 	| (AuthtypesGoogleConfigDTO & {
+			feishuConfig?: AuthtypesFeishuConfigDTO;
 			googleAuthConfig?: AuthtypesGoogleConfigDTO;
 			oidcConfig?: AuthtypesOIDCConfigDTO;
 			roleMapping?: AuthtypesRoleMappingDTO;
@@ -2007,6 +2025,19 @@ export type AuthtypesAuthDomainConfigDTO =
 			ssoType?: AuthtypesAuthNProviderDTO;
 	  })
 	| (AuthtypesOIDCConfigDTO & {
+			feishuConfig?: AuthtypesFeishuConfigDTO;
+			googleAuthConfig?: AuthtypesGoogleConfigDTO;
+			oidcConfig?: AuthtypesOIDCConfigDTO;
+			roleMapping?: AuthtypesRoleMappingDTO;
+			samlConfig?: AuthtypesSamlConfigDTO;
+			/**
+			 * @type boolean
+			 */
+			ssoEnabled?: boolean;
+			ssoType?: AuthtypesAuthNProviderDTO;
+	  })
+	| (AuthtypesFeishuConfigDTO & {
+			feishuConfig?: AuthtypesFeishuConfigDTO;
 			googleAuthConfig?: AuthtypesGoogleConfigDTO;
 			oidcConfig?: AuthtypesOIDCConfigDTO;
 			roleMapping?: AuthtypesRoleMappingDTO;
@@ -10282,6 +10313,14 @@ export type GetServiceParams = {
 
 export type GetService200 = {
 	data: CloudintegrationtypesServiceDTO;
+	/**
+	 * @type string
+	 */
+	status: string;
+};
+
+export type CreateSessionByFeishuCallback303 = {
+	data: AuthtypesGettableTokenDTO;
 	/**
 	 * @type string
 	 */

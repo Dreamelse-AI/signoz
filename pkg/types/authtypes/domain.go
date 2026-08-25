@@ -72,6 +72,7 @@ type AuthDomainConfig struct {
 	SAML          *SamlConfig   `json:"samlConfig"`
 	Google        *GoogleConfig `json:"googleAuthConfig"`
 	OIDC          *OIDCConfig   `json:"oidcConfig"`
+	Feishu        *FeishuConfig `json:"feishuConfig"`
 	RoleMapping   *RoleMapping  `json:"roleMapping"`
 }
 
@@ -186,6 +187,11 @@ func (typ *AuthDomainConfig) UnmarshalJSON(data []byte) error {
 			return errors.Newf(errors.TypeInvalidInput, ErrCodeAuthDomainInvalidConfig, "oidc config is required")
 		}
 
+	case AuthNProviderFeishu:
+		if temp.Feishu == nil {
+			return errors.Newf(errors.TypeInvalidInput, ErrCodeAuthDomainInvalidConfig, "feishu config is required")
+		}
+
 	default:
 		return errors.Newf(errors.TypeInvalidInput, ErrCodeAuthDomainInvalidConfig, "invalid authn provider %q", temp.AuthNProvider.StringValue())
 	}
@@ -200,6 +206,7 @@ func (AuthDomainConfig) JSONSchemaOneOf() []any {
 		SamlConfig{},
 		GoogleConfig{},
 		OIDCConfig{},
+		FeishuConfig{},
 	}
 }
 

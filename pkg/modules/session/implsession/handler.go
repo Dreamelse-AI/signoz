@@ -117,6 +117,21 @@ func (handler *handler) CreateSessionByOIDCCallback(rw http.ResponseWriter, req 
 	http.Redirect(rw, req, redirectURL, http.StatusSeeOther)
 }
 
+func (handler *handler) CreateSessionByFeishuCallback(rw http.ResponseWriter, req *http.Request) {
+	ctx, cancel := context.WithTimeout(req.Context(), 15*time.Second)
+	defer cancel()
+
+	values := req.URL.Query()
+
+	redirectURL, err := handler.module.CreateCallbackAuthNSession(ctx, authtypes.AuthNProviderFeishu, values)
+	if err != nil {
+		http.Redirect(rw, req, handler.getRedirectURLFromErr(err), http.StatusSeeOther)
+		return
+	}
+
+	http.Redirect(rw, req, redirectURL, http.StatusSeeOther)
+}
+
 func (handler *handler) RotateSession(rw http.ResponseWriter, req *http.Request) {
 	ctx, cancel := context.WithTimeout(req.Context(), 10*time.Second)
 	defer cancel()

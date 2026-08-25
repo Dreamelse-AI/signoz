@@ -9,6 +9,7 @@ import {
 import CreateEdit from '../CreateEdit/CreateEdit';
 import {
 	mockDomainWithRoleMapping,
+	mockFeishuAuthDomain,
 	mockGoogleAuthDomain,
 	mockGoogleAuthWithWorkspaceGroups,
 	mockOidcAuthDomain,
@@ -32,6 +33,7 @@ describe('CreateEdit Modal', () => {
 				screen.getByText(/configure authentication method/i),
 			).toBeInTheDocument();
 			expect(screen.getByText(/google apps authentication/i)).toBeInTheDocument();
+			expect(screen.getByText(/feishu authentication/i)).toBeInTheDocument();
 			expect(screen.getByText(/saml authentication/i)).toBeInTheDocument();
 			expect(screen.getByText(/oidc authentication/i)).toBeInTheDocument();
 		});
@@ -273,6 +275,36 @@ describe('CreateEdit Modal', () => {
 
 			expect(screen.getByText(/skip email verification/i)).toBeInTheDocument();
 			expect(screen.getByText(/get user info/i)).toBeInTheDocument();
+		});
+	});
+
+	describe('Feishu Provider', () => {
+		it('shows Feishu-specific fields when editing feishu domain', () => {
+			render(
+				<CreateEdit
+					isCreate={false}
+					record={mockFeishuAuthDomain}
+					onClose={mockOnClose}
+				/>,
+			);
+
+			expect(screen.getByText(/edit feishu authentication/i)).toBeInTheDocument();
+			expect(screen.getByDisplayValue('feishu-corp.com')).toBeInTheDocument();
+			expect(screen.getByDisplayValue('cli_feishu_app_id')).toBeInTheDocument();
+			expect(screen.getByDisplayValue('feishu-app-secret')).toBeInTheDocument();
+			expect(screen.getByText(/use lark \(international\)/i)).toBeInTheDocument();
+		});
+
+		it('shows role mapping section for feishu', () => {
+			render(
+				<CreateEdit
+					isCreate={false}
+					record={mockFeishuAuthDomain}
+					onClose={mockOnClose}
+				/>,
+			);
+
+			expect(screen.getByText(/role mapping \(advanced\)/i)).toBeInTheDocument();
 		});
 	});
 

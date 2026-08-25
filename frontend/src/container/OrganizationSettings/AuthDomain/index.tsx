@@ -30,6 +30,7 @@ export const SSOType = new Map<string, string>([
 	['saml', 'SAML'],
 	['email_password', 'Email Password'],
 	['oidc', 'OIDC'],
+	['feishu', 'Feishu'],
 ]);
 
 function AuthDomain(): JSX.Element {

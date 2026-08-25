@@ -5,6 +5,7 @@ import CreateEdit from '../CreateEdit/CreateEdit';
 import {
 	AUTH_DOMAINS_UPDATE_ENDPOINT,
 	mockDomainWithRoleMapping,
+	mockFeishuAuthDomain,
 	mockGoogleAuthWithWorkspaceGroups,
 	mockUpdateSuccessResponse,
 } from './mocks';
@@ -164,6 +165,41 @@ describe('CreateEdit — save payload correctness', () => {
 				googleAuthConfig: expect.objectContaining({
 					domainToAdminEmail: {},
 				}),
+			}),
+		});
+	});
+
+	it('sends ssoType feishu with feishuConfig when saving a feishu domain', async () => {
+		let capturedPayload: unknown = null;
+
+		server.use(
+			rest.put(AUTH_DOMAINS_UPDATE_ENDPOINT, async (req, res, ctx) => {
+				capturedPayload = await req.json();
+				return res(ctx.status(200), ctx.json(mockUpdateSuccessResponse));
+			}),
+		);
+
+		render(
+			<CreateEdit
+				isCreate={false}
+				record={mockFeishuAuthDomain}
+				onClose={jest.fn()}
+			/>,
+		);
+
+		// Submit — MSW intercepts the PUT request
+		fireEvent.click(screen.getByRole('button', { name: /save changes/i }));
+
+		await waitFor(() => expect(capturedPayload).not.toBeNull());
+
+		expect(capturedPayload).toMatchObject({
+			config: expect.objectContaining({
+				ssoType: 'feishu',
+				feishuConfig: {
+					clientId: 'cli_feishu_app_id',
+					clientSecret: 'feishu-app-secret',
+					useLark: false,
+				},
 			}),
 		});
 	});

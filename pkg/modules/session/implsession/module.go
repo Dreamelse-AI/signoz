@@ -212,6 +212,19 @@ func (module *module) getOrgSessionContext(ctx context.Context, org *types.Organ
 	}
 
 	if authDomain == nil {
+		// The typed address does not belong to a configured domain. Providers whose
+		// authorization lives entirely in the identity provider (feishu: the app's
+		// member scope decides who may log in) must still be reachable here —
+		// otherwise a user whose mailbox sits outside the org domain, or who has no
+		// mailbox at all, could never reach the login button. Fall back to such a
+		// domain if the org has one; password login stays reachable via ?password=Y.
+		authDomain, err = module.getDomainAuthNAgnosticAuthDomain(ctx, org.ID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if authDomain == nil {
 		return authtypes.NewOrgSessionContext(org.ID, org.Name).AddPasswordAuthNSupport(authtypes.AuthNProviderEmailPassword), nil
 	}
 
@@ -234,6 +247,47 @@ func (module *module) getOrgSessionContext(ctx context.Context, org *types.Organ
 	}
 
 	return authtypes.NewOrgSessionContext(org.ID, org.Name).AddCallbackAuthNSupport(authDomain.AuthDomainConfig().AuthNProvider, loginURL), nil
+}
+
+// getDomainAuthNAgnosticAuthDomain returns the org's SSO-enabled auth domain
+// whose provider does not derive authorization from the email domain, or nil if
+// there is none. Only feishu qualifies: google carries an hd claim and saml/oidc
+// domains are provisioned per mail domain on purpose, so widening them would let
+// an unrelated tenant in.
+func (module *module) getDomainAuthNAgnosticAuthDomain(ctx context.Context, orgID valuer.UUID) (*authtypes.AuthDomain, error) {
+	authDomains, err := module.authDomain.ListByOrgID(ctx, orgID)
+	if err != nil {
+		if errors.Ast(err, errors.TypeNotFound) {
+			return nil, nil
+		}
+
+		return nil, err
+	}
+
+	candidates := make([]*authtypes.AuthDomain, 0, len(authDomains))
+	for _, authDomain := range authDomains {
+		config := authDomain.AuthDomainConfig()
+		if config.SSOEnabled && config.AuthNProvider == authtypes.AuthNProviderFeishu {
+			candidates = append(candidates, authDomain)
+		}
+	}
+
+	if len(candidates) == 0 {
+		return nil, nil
+	}
+
+	// ListByOrgID does not order its rows, so an org holding more than one feishu
+	// domain would otherwise hand out a different client_id per request and look
+	// like an intermittent login failure. Pick the oldest one deterministically.
+	slices.SortFunc(candidates, func(a, b *authtypes.AuthDomain) int {
+		if diff := a.StorableAuthDomain().CreatedAt.Compare(b.StorableAuthDomain().CreatedAt); diff != 0 {
+			return diff
+		}
+
+		return strings.Compare(a.StorableAuthDomain().ID.String(), b.StorableAuthDomain().ID.String())
+	})
+
+	return candidates[0], nil
 }
 
 func getProvider[T authn.AuthN](authNProvider authtypes.AuthNProvider, authNs map[authtypes.AuthNProvider]authn.AuthN) (T, error) {

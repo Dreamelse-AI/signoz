@@ -131,5 +131,22 @@ func (provider *provider) addSessionRoutes(router *mux.Router) error {
 		return err
 	}
 
+	if err := router.Handle("/api/v1/complete/feishu", handler.New(provider.authzMiddleware.OpenAccess(provider.sessionHandler.CreateSessionByFeishuCallback), handler.OpenAPIDef{
+		ID:                  "CreateSessionByFeishuCallback",
+		Tags:                []string{"sessions"},
+		Summary:             "Create session by feishu callback",
+		Description:         "This endpoint creates a session for a user using feishu callback",
+		Request:             nil,
+		RequestContentType:  "",
+		Response:            new(authtypes.GettableToken),
+		ResponseContentType: "application/json",
+		SuccessStatusCode:   http.StatusSeeOther,
+		ErrorStatusCodes:    []int{http.StatusBadRequest, http.StatusNotFound},
+		Deprecated:          false,
+		SecuritySchemes:     []handler.OpenAPISecurityScheme{},
+	})).Methods(http.MethodGet).GetError(); err != nil {
+		return err
+	}
+
 	return nil
 }

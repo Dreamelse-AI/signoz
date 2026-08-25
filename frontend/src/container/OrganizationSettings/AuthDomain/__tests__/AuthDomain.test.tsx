@@ -7,6 +7,7 @@ import {
 	mockDomainsListResponse,
 	mockEmptyDomainsResponse,
 	mockErrorResponse,
+	mockFeishuAuthDomain,
 } from './mocks';
 
 jest.mock('@signozhq/ui/sonner', () => ({
@@ -153,6 +154,24 @@ describe('AuthDomain', () => {
 
 			await waitFor(() => {
 				expect(screen.getByText(/edit google authentication/i)).toBeInTheDocument();
+			});
+		});
+
+		it('renders Configure Feishu action for feishu domains', async () => {
+			server.use(
+				rest.get(AUTH_DOMAINS_LIST_ENDPOINT, (_, res, ctx) =>
+					res(
+						ctx.status(200),
+						ctx.json({ status: 'success', data: [mockFeishuAuthDomain] }),
+					),
+				),
+			);
+
+			render(<AuthDomain />);
+
+			await waitFor(() => {
+				expect(screen.getByText('feishu-corp.com')).toBeInTheDocument();
+				expect(screen.getByText(/configure feishu/i)).toBeInTheDocument();
 			});
 		});
 	});

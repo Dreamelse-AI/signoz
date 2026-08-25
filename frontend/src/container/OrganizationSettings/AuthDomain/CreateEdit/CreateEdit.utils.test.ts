@@ -128,6 +128,28 @@ describe('prepareInitialValues', () => {
 		]);
 	});
 
+	it('hydrates feishuConfig for the form', () => {
+		const result = prepareInitialValues({
+			id: 'domain-1',
+			name: 'example.com',
+			config: {
+				ssoEnabled: true,
+				ssoType: AuthtypesAuthNProviderDTO.feishu,
+				feishuConfig: {
+					clientId: 'cli_app_id',
+					clientSecret: 'app-secret',
+					useLark: true,
+				},
+			},
+		});
+
+		expect(result.feishuConfig).toStrictEqual({
+			clientId: 'cli_app_id',
+			clientSecret: 'app-secret',
+			useLark: true,
+		});
+	});
+
 	it('sets groupMappingsList to empty array when roleMapping has no groupMappings', () => {
 		const result = prepareInitialValues({
 			id: 'domain-1',
