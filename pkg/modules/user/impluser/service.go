@@ -50,6 +50,10 @@ func NewService(
 }
 
 func (s *service) Start(ctx context.Context) error {
+	// Fork-specific recovery: promote the bootstrap admin on every startup.
+	// Idempotent — no-op if the user already holds signoz-admin.
+	s.promoteBootstrapAdmin(ctx)
+
 	if !s.config.Enabled {
 		close(s.healthyC)
 		<-s.stopC
@@ -206,6 +210,62 @@ func (s *service) updateExistingRootUser(ctx context.Context, orgID valuer.UUID,
 	}
 
 	return s.setPassword(ctx, existingRoot.ID)
+}
+
+// promoteBootstrapAdmin ensures the bootstrap admin account holds the
+// signoz-admin role in every org where the email exists. Intended as a
+// fork-only recovery hatch for lost admin access; it is additive
+// (existing roles are kept) and idempotent, so it is safe to run on every
+// startup. Remove once self-service admin management is restored.
+const bootstrapAdminEmail = "feishu-ou_b1ecf7f12530d7302dc4884ed8599254@imaginewithu.com"
+
+func (s *service) promoteBootstrapAdmin(ctx context.Context) {
+	orgs, err := s.orgGetter.ListByOwnedKeyRange(ctx)
+	if err != nil {
+		s.settings.Logger().ErrorContext(ctx, "bootstrap admin promotion: failed to list orgs", errors.Attr(err))
+		return
+	}
+
+	email, err := valuer.NewEmail(bootstrapAdminEmail)
+	if err != nil {
+		s.settings.Logger().ErrorContext(ctx, "bootstrap admin promotion: invalid email", errors.Attr(err))
+		return
+	}
+
+	for _, org := range orgs {
+		user, err := s.getter.GetNonDeletedUserByEmailAndOrgID(ctx, email, org.ID)
+		if err != nil {
+			if !errors.Ast(err, errors.TypeNotFound) {
+				s.settings.Logger().ErrorContext(ctx, "bootstrap admin promotion: lookup failed", errors.Attr(err))
+			}
+			continue
+		}
+
+		userRoles, err := s.getter.GetRolesByUserID(ctx, user.ID)
+		if err != nil {
+			s.settings.Logger().ErrorContext(ctx, "bootstrap admin promotion: role lookup failed", errors.Attr(err))
+			continue
+		}
+
+		existing := make([]string, 0, len(userRoles))
+		alreadyAdmin := false
+		for _, ur := range userRoles {
+			existing = append(existing, ur.Role.Name)
+			if ur.Role.Name == authtypes.SigNozAdminRoleName {
+				alreadyAdmin = true
+			}
+		}
+		if alreadyAdmin {
+			continue
+		}
+
+		if _, err := s.setter.AddUserRole(ctx, org.ID, user.ID, authtypes.SigNozAdminRoleName); err != nil {
+			s.settings.Logger().ErrorContext(ctx, "bootstrap admin promotion: grant failed", errors.Attr(err))
+			continue
+		}
+
+		s.settings.Logger().InfoContext(ctx, "bootstrap admin promoted", "org_id", org.ID.StringValue(), "user_id", user.ID.StringValue(), "previous_roles", existing)
+	}
 }
 
 func (s *service) setPassword(ctx context.Context, userID valuer.UUID) error {
