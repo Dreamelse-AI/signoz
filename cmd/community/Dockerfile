@@ -13,8 +13,18 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
+# Reproduce the upstream CI ldflags (build-community.yaml / .goreleaser.yaml):
+# version metadata + analytics key are injected at build time; the binary
+# prints and uses them at startup.
 RUN GOOS=linux GOARCH=amd64 go build -C ./cmd/community -tags timetzdata \
-	-o /src/target/linux-amd64/signoz-community -ldflags "-s -w"
+	-o /src/target/linux-amd64/signoz-community \
+	-ldflags "-s -w \
+	-X github.com/SigNoz/signoz/pkg/version.version=dev-$(date -u +%Y%m%d%H%M%S) \
+	-X github.com/SigNoz/signoz/pkg/version.variant=community \
+	-X github.com/SigNoz/signoz/pkg/version.hash=$(git rev-parse --short HEAD 2>/dev/null || echo unknown) \
+	-X github.com/SigNoz/signoz/pkg/version.time=$(git log -1 --format=%ct 2>/dev/null || echo 0) \
+	-X github.com/SigNoz/signoz/pkg/version.branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown) \
+	-X github.com/SigNoz/signoz/pkg/analytics.key=9kRrJ7oPCGPEJLF6QjMPLt5bljFhRQBr"
 
 FROM node:22-alpine AS web
 RUN corepack enable
