@@ -20,9 +20,10 @@ FROM node:22-alpine AS web
 RUN corepack enable
 WORKDIR /src/frontend
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
-# CI: skip pnpm v11 supply-chain gates (trust downgrade on chokidar, build-script approvals)
-RUN pnpm config set trust-policy off --location project && \
-	pnpm config set dangerously-allow-all-builds true --location project
+# CI: allow chokidar@4.0.3 past the no-downgrade trust policy (repo policy flags it,
+# lockfile is pinned and audited). Build-script approvals are granted the same way.
+RUN pnpm config set trustPolicyExclude --location project 'chokidar@4.0.3' && \
+	pnpm config set dangerouslyAllowAllBuilds true --location project
 COPY frontend/ ./
 RUN pnpm install --frozen-lockfile && pnpm build
 
