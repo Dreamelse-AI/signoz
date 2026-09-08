@@ -21,8 +21,10 @@ RUN corepack enable
 WORKDIR /src/frontend
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
 # chokidar@4.0.3 is excluded from the no-downgrade trust policy directly in
-# pnpm-workspace.yaml (repo-committed); approve all build scripts for CI.
-RUN pnpm config set dangerouslyAllowAllBuilds true --location project
+# pnpm-workspace.yaml (repo-committed). Build-script approvals are granted via
+# `pnpm approve-builds <pkgs>` (non-interactive; dangerouslyAllowAllBuilds via
+# `pnpm config set` does not take effect on this codepath).
+RUN pnpm approve-builds @parcel/watcher @sentry/cli core-js esbuild msw unrs-resolver || true
 COPY frontend/ ./
 RUN pnpm install --frozen-lockfile && pnpm build
 
