@@ -20,11 +20,7 @@ FROM node:22-alpine AS web
 RUN corepack enable
 WORKDIR /src/frontend
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
-# Build-script approvals: pnpm v11 only honors `allowBuilds` from
-# pnpm-workspace.yaml in non-interactive frozen-lockfile installs — both
-# `pnpm config set dangerouslyAllowAllBuilds` and `pnpm approve-builds <pkgs>`
-# are ignored on this codepath. Append the approvals to the workspace file.
-RUN printf '\nallowBuilds:\n  @parcel/watcher: true\n  @sentry/cli: true\n  core-js: true\n  esbuild: true\n  msw: true\n  unrs-resolver: true\n' >> pnpm-workspace.yaml
+# Build-script approvals are committed in pnpm-workspace.yaml (allowBuilds).
 COPY frontend/ ./
 RUN pnpm install --frozen-lockfile && pnpm build
 

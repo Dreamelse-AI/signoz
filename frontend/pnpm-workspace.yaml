@@ -3,6 +3,16 @@ minimumReleaseAge: 2880 # 2d
 minimumReleaseAgeExclude:
  - '@signozhq/*'
 minimumReleaseAgeStrict: true
+# Build-script approvals (pnpm v11 strictDepBuilds). CI installs are
+# non-interactive, so these must live in this file — CLI flags
+# (dangerouslyAllowAllBuilds / approve-builds) are ignored there.
+allowBuilds:
+  '@parcel/watcher': true
+  '@sentry/cli': true
+  core-js: true
+  esbuild: true
+  msw: true
+  unrs-resolver: true
 # Security floors for vulnerable transitive deps. Where possible, targets are
 # capped to avoid crossing breaking versions (major; and minor for 0.x).
 # Some entries may still force a breaking bump when no safe release exists
