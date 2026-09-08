@@ -51,3 +51,4 @@ overrides:
 trustPolicy: no-downgrade
 trustPolicyExclude:
  - 'semver@6.3.1 || 5.7.2'
+ - 'chokidar@4.0.3'
