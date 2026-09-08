@@ -1,8 +1,20 @@
 # syntax=docker/dockerfile:1
-# Final image is the `final` target; build with:
-#   docker build -f cmd/community/Dockerfile --target final .
-# The `base` stage is kept for reference/local builds where frontend/build
-# already exists (it is NOT buildable via CI - the pipeline selects --target final).
+# CI builds the `final` target (pipeline passes --target final):
+#   web   - node:22 + pnpm builds the frontend into /src/frontend/build
+#   go    - golang cross-compiles the community backend into ./target/linux-amd64/
+#   final - alpine runtime, backend binary + templates + web assets
+# The legacy `base` stage (expects prebuilt frontend/build + target/) is gone:
+# `final` supersedes it; build locally with `make go-build-community` + docker
+# target final as well.
+
+FROM golang:1.25-alpine AS go
+RUN apk add --no-cache git make
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN GOOS=linux GOARCH=amd64 go build -C ./cmd/community -tags timetzdata \
+	-o /src/target/linux-amd64/signoz-community -ldflags "-s -w"
 
 FROM node:22-alpine AS web
 RUN corepack enable
@@ -26,18 +38,10 @@ RUN apk update && \
 	rm -rf /var/cache/apk/*
 
 
-COPY ./target/${OS}-${TARGETARCH}/signoz-community /root/signoz
+COPY --from=go /src/target/${OS}-${TARGETARCH}/signoz-community /root/signoz
 COPY ./templates /root/templates
 COPY --from=web /src/frontend/build/ /etc/signoz/web/
 
 RUN chmod 755 /root /root/signoz
 
 ENTRYPOINT ["./signoz", "server"]
-
-# ---------------------------------------------------------------------------
-# `base` stage: legacy single-stage variant. Only usable when frontend/build
-# already exists in the build context. The `final` target above is what CI
-# builds; it compiles the frontend itself in the `web` stage.
-# ---------------------------------------------------------------------------
-FROM alpine:3.20.3 AS base
-COPY frontend/build/ /etc/signoz/web/
