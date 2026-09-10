@@ -47,6 +47,10 @@ import { getSortedSeriesData } from 'utils/getSortedSeriesData';
 import { getTimeRange } from 'utils/getTimeRange';
 
 import { AlertDetectionTypes } from '..';
+import {
+	filterAlertChartSeries,
+	getSelectedQueryName,
+} from './filterSelectedSeries';
 import ChartContent from './ChartContent';
 import { ChartContainer } from './styles';
 import { getThresholds } from './utils';
@@ -73,6 +77,8 @@ export interface ChartPreviewProps {
 	additionalThresholds?: Threshold[];
 	isCancelled?: boolean;
 	onFetchingStateChange?: (isFetching: boolean) => void;
+	/** Query/formula the threshold evaluates; only its series are plotted. */
+	selectedQueryName?: string;
 }
 
 // eslint-disable-next-line sonarjs/cognitive-complexity
@@ -91,6 +97,7 @@ function ChartPreview({
 	additionalThresholds,
 	isCancelled = false,
 	onFetchingStateChange,
+	selectedQueryName,
 }: ChartPreviewProps): JSX.Element | null {
 	const { t } = useTranslation('alerts');
 	const dispatch = useDispatch();
@@ -255,17 +262,38 @@ function ChartPreview({
 
 	const { timezone } = useTimezone();
 
+	// The threshold evaluates a single query/formula; plotting every series in
+	// the response (e.g. raw `used`/`total` bytes next to a percentage formula)
+	// flattens the evaluated line. Keep only the selected query's series — for
+	// BOTH the uPlot data and the series config, they must come from the same
+	// filtered payload.
+	const selectedQuery =
+		selectedQueryName || getSelectedQueryName(alertDef?.condition);
+	const filteredApiResponse = useMemo(
+		() =>
+			filterAlertChartSeries(queryResponse.data?.payload ?? null, selectedQuery),
+		[queryResponse.data?.payload, selectedQuery],
+	);
+
 	const legendPosition = useMemo(() => {
 		if (!showSideLegend) {
 			return LegendPosition.BOTTOM;
 		}
+		// Count series after the selected-query filter so the legend layout
+		// reflects what is actually plotted, not the raw payload.
 		const numberOfSeries =
-			queryResponse?.data?.payload?.data?.result?.length || 0;
+			filteredApiResponse?.data?.result?.length ||
+			queryResponse?.data?.payload?.data?.result?.length ||
+			0;
 		if (numberOfSeries <= 1) {
 			return LegendPosition.BOTTOM;
 		}
 		return LegendPosition.RIGHT;
-	}, [queryResponse?.data?.payload?.data?.result?.length, showSideLegend]);
+	}, [
+		filteredApiResponse,
+		queryResponse?.data?.payload?.data?.result?.length,
+		showSideLegend,
+	]);
 
 	const resolvedThresholds = useMemo(
 		() => getThresholds(thresholds, t, optionName, yAxisUnit),
@@ -273,13 +301,13 @@ function ChartPreview({
 	);
 
 	const chartData = useMemo(() => {
-		if (!queryResponse?.data?.payload) {
+		if (!filteredApiResponse) {
 			return [];
 		}
-		return prepareChartData(queryResponse?.data?.payload);
-	}, [queryResponse?.data?.payload]);
+		return prepareChartData(filteredApiResponse);
+	}, [filteredApiResponse]);
 
-	const hasResultData = !!queryResponse?.data?.payload?.data?.result?.length;
+	const hasResultData = !!filteredApiResponse?.data?.result?.length;
 
 	const isAnomalyDetectionAlert =
 		alertDef?.ruleType === AlertDetectionTypes.ANOMALY_DETECTION_ALERT;
@@ -330,7 +358,7 @@ function ChartPreview({
 							panelType={graphType}
 							alertId={alertDef?.id}
 							query={query || currentQuery}
-							apiResponse={queryResponse.data?.payload}
+							apiResponse={filteredApiResponse}
 							data={chartData}
 							thresholds={resolvedThresholds}
 							yAxisUnit={yAxisUnit}

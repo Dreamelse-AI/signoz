@@ -727,6 +727,7 @@ function FormAlertRules({
 			setQueryStatus={setQueryStatus}
 			isCancelled={isChartQueryCancelled}
 			onFetchingStateChange={setIsLoadingAlertQuery}
+			selectedQueryName={alertDef.condition.selectedQueryName}
 		/>
 	);
 
@@ -746,6 +747,7 @@ function FormAlertRules({
 			setQueryStatus={setQueryStatus}
 			isCancelled={isChartQueryCancelled}
 			onFetchingStateChange={setIsLoadingAlertQuery}
+			selectedQueryName={alertDef.condition.selectedQueryName}
 		/>
 	);
 

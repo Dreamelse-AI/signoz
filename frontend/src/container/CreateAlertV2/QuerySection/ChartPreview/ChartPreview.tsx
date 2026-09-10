@@ -100,6 +100,7 @@ function ChartPreview({
 			additionalThresholds={thresholdState.thresholds}
 			isCancelled={isCancelled}
 			onFetchingStateChange={onFetchingStateChange}
+			selectedQueryName={selectedQueryName}
 		/>
 	);
 
