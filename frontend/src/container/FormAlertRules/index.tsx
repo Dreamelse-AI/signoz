@@ -158,7 +158,12 @@ function FormAlertRules({
 
 	// alertDef holds the form values to be posted
 	const [alertDef, setAlertDef] = useState<AlertDef>(initialValue);
-	const [yAxisUnit, setYAxisUnit] = useState<string>(currentQuery.unit || '');
+	// Y 轴单位初始值：stagedQuery.unit（URL 驱动）经常是空的——详情页跳转生成的
+	// compositeQuery 不带 unit，导致「Please select a unit」而阈值线/刻度裸奔原始值。
+	// 编辑已有规则时回退到规则本身的 compositeQuery.unit。
+	const [yAxisUnit, setYAxisUnit] = useState<string>(
+		currentQuery.unit || initialValue.condition.compositeQuery.unit || '',
+	);
 
 	const alertRuleContext = useAlertRuleOptional();
 	const providerAlertName = alertRuleContext?.alertRuleName;
@@ -192,8 +197,10 @@ function FormAlertRules({
 	const [isConfirmSaveOpen, setIsConfirmSaveOpen] = useState(false);
 
 	useEffect(() => {
-		if (!isEqual(currentQuery.unit, yAxisUnit)) {
-			setYAxisUnit(currentQuery.unit || '');
+		// URL 驱动的 stagedQuery.unit 常为空（详情页跳转不带 unit），为空时别把
+		// 已回退到规则 unit 的 yAxisUnit 清掉——只在 stagedQuery 确实带了不同 unit 时同步。
+		if (currentQuery.unit && !isEqual(currentQuery.unit, yAxisUnit)) {
+			setYAxisUnit(currentQuery.unit);
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [currentQuery.unit]);
