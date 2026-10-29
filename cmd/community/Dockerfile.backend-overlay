@@ -11,19 +11,21 @@ ARG BASE_REVISION
 RUN go version -m /tmp/current-signoz > /tmp/current-build-info && \
     cat /tmp/current-build-info && \
     test -n "${BASE_REVISION}" && \
-    grep -F "vcs.revision=${BASE_REVISION}" /tmp/current-build-info && \
+    (grep -F "vcs.revision=${BASE_REVISION}" /tmp/current-build-info || \
+     grep -F "github.com/SigNoz/signoz/pkg/version.hash=$(echo "${BASE_REVISION}" | cut -c1-7)" /tmp/current-build-info) && \
     grep -E 'path[[:space:]]+github.com/SigNoz/signoz/cmd/community$' /tmp/current-build-info
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 ARG BUILD_VERSION=dev-query-limits
+ARG BUILD_REVISION=unknown
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -C ./cmd/community -tags timetzdata \
     -o /tmp/signoz -ldflags "-s -w \
     -X github.com/SigNoz/signoz/pkg/version.version=${BUILD_VERSION} \
     -X github.com/SigNoz/signoz/pkg/version.variant=community \
-    -X github.com/SigNoz/signoz/pkg/version.hash=$(git rev-parse --short HEAD) \
-    -X github.com/SigNoz/signoz/pkg/version.time=$(git log -1 --format=%ct) \
-    -X github.com/SigNoz/signoz/pkg/version.branch=$(git rev-parse --abbrev-ref HEAD)"
+    -X github.com/SigNoz/signoz/pkg/version.hash=${BUILD_REVISION} \
+    -X github.com/SigNoz/signoz/pkg/version.branch=query-resource-limits \
+    -X github.com/SigNoz/signoz/pkg/analytics.key=9kRrJ7oPCGPEJLF6QjMPLt5bljFhRQBr"
 
 FROM current AS final
 COPY --from=backend /tmp/signoz /root/signoz
