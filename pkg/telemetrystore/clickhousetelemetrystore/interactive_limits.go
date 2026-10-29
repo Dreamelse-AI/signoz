@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	chparser "github.com/AfterShip/clickhouse-sql-parser/parser"
 	"github.com/ClickHouse/clickhouse-go/v2"
@@ -37,8 +38,15 @@ func applyInteractiveLimits(ctx context.Context, sql string, limits telemetrysto
 	}
 	ctx = ctxtypes.NewContextWithCommentVals(ctx, map[string]string{"query_limits": "interactive_v1"})
 	settings["log_comment"] = ctxtypes.CommentFromContext(ctx).String()
-	return clickhouse.Context(ctx, clickhouse.WithSettings(settings)), bounded, nil
+	return interactiveDeadlineContext{clickhouse.Context(ctx, clickhouse.WithSettings(settings))}, bounded, nil
 }
+
+// The ClickHouse driver overwrites max_execution_time with Deadline()+5s,
+// even when a stricter setting is supplied. Keep cancellation and context
+// values, but let the explicit server limit control execution time.
+type interactiveDeadlineContext struct{ context.Context }
+
+func (interactiveDeadlineContext) Deadline() (time.Time, bool) { return time.Time{}, false }
 
 type settingEdit struct {
 	start, end int

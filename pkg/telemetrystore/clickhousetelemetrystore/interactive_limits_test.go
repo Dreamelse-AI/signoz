@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/SigNoz/signoz/pkg/telemetrystore"
 	"github.com/SigNoz/signoz/pkg/types/ctxtypes"
@@ -37,6 +38,27 @@ func TestBoundInlineSettings(t *testing.T) {
 				t.Fatalf("got %q, want %q", got, tc.want)
 			}
 		})
+	}
+}
+
+func TestInteractiveDeadlineKeepsCancellation(t *testing.T) {
+	parent, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Minute))
+	defer cancel()
+	ctx := ctxtypes.NewContextWithCommentVals(parent, map[string]string{"code.function": "QueryRange"})
+	limits := telemetrystore.InteractiveLimits{MaxRowsToRead: 100, MaxBytesToRead: 2048, MaxMemoryUsage: 1024, MaxExecutionTime: 30}
+	next, _, err := applyInteractiveLimits(ctx, "SELECT 1", limits)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := next.Deadline(); ok {
+		t.Fatal("driver can overwrite the explicit server execution limit")
+	}
+	if next.Done() != parent.Done() || ctxtypes.CommentFromContext(next).Map()["query_limits"] != "interactive_v1" {
+		t.Fatal("parent cancellation or query context was lost")
+	}
+	cancel()
+	if next.Err() != context.Canceled {
+		t.Fatal("request cancellation no longer reaches the driver")
 	}
 }
 
