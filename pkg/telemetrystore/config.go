@@ -1,6 +1,7 @@
 package telemetrystore
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/SigNoz/signoz/pkg/factory"
@@ -37,6 +38,17 @@ type ClickhouseConfig struct {
 
 	// QuerySettings is the query settings for clickhouse.
 	QuerySettings QuerySettings `mapstructure:"settings"`
+
+	// InteractiveLimits applies to authenticated QueryRange reads only.
+	// All zero values disable it; enabled limits must all be positive.
+	InteractiveLimits InteractiveLimits `mapstructure:"interactive_limits"`
+}
+
+type InteractiveLimits struct {
+	MaxRowsToRead    int64 `mapstructure:"max_rows_to_read"`
+	MaxBytesToRead   int64 `mapstructure:"max_bytes_to_read"`
+	MaxMemoryUsage   int64 `mapstructure:"max_memory_usage"`
+	MaxExecutionTime int64 `mapstructure:"max_execution_time"`
 }
 
 type QuerySettings struct {
@@ -70,5 +82,9 @@ func newConfig() factory.Config {
 }
 
 func (c Config) Validate() error {
+	limits := c.Clickhouse.InteractiveLimits
+	if limits != (InteractiveLimits{}) && (limits.MaxRowsToRead <= 0 || limits.MaxBytesToRead <= 0 || limits.MaxMemoryUsage <= 0 || limits.MaxExecutionTime <= 0) {
+		return fmt.Errorf("interactive_limits requires positive row, byte, memory and execution-time limits")
+	}
 	return nil
 }
