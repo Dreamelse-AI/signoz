@@ -3,7 +3,7 @@
 ARG BASE_IMAGE
 FROM ${BASE_IMAGE} AS current
 
-FROM golang:1.26.2-alpine AS backend
+FROM golang:1.25.7-alpine AS backend
 RUN apk add --no-cache git
 WORKDIR /src
 COPY --from=current /root/signoz /tmp/current-signoz
@@ -19,7 +19,8 @@ RUN go mod download
 COPY . .
 ARG BUILD_VERSION=dev-query-limits
 ARG BUILD_REVISION=unknown
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -C ./cmd/community -tags timetzdata \
+RUN CGO_ENABLED=0 go test ./pkg/telemetrystore/clickhousetelemetrystore ./pkg/telemetrystore -count=1
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -p 2 -C ./cmd/community -tags timetzdata \
     -o /tmp/signoz -ldflags "-s -w \
     -X github.com/SigNoz/signoz/pkg/version.version=${BUILD_VERSION} \
     -X github.com/SigNoz/signoz/pkg/version.variant=community \
