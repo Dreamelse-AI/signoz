@@ -75,10 +75,11 @@ var clickHouseExceptionWrappers = map[chproto.Error]func(cause error, ex *clickh
 }
 
 type provider struct {
-	settings       factory.ScopedProviderSettings
-	clickHouseConn clickhouse.Conn
-	cluster        string
-	hooks          []telemetrystore.TelemetryStoreHook
+	settings          factory.ScopedProviderSettings
+	clickHouseConn    clickhouse.Conn
+	cluster           string
+	hooks             []telemetrystore.TelemetryStoreHook
+	interactiveLimits telemetrystore.InteractiveLimits
 }
 
 func NewFactory(hookFactories ...factory.ProviderFactory[telemetrystore.TelemetryStoreHook, telemetrystore.Config]) factory.ProviderFactory[telemetrystore.TelemetryStore, telemetrystore.Config] {
@@ -132,10 +133,11 @@ func New(ctx context.Context, providerSettings factory.ProviderSettings, config 
 	}
 
 	p := &provider{
-		settings:       settings,
-		clickHouseConn: chConn,
-		cluster:        config.Clickhouse.Cluster,
-		hooks:          hooks,
+		settings:          settings,
+		clickHouseConn:    chConn,
+		cluster:           config.Clickhouse.Cluster,
+		hooks:             hooks,
+		interactiveLimits: config.Clickhouse.InteractiveLimits,
 	}
 	return p, nil
 }
@@ -176,6 +178,15 @@ func (p *provider) Query(ctx context.Context, query string, args ...interface{})
 	event := telemetrystore.NewQueryEvent(query, args)
 
 	ctx = telemetrystore.WrapBeforeQuery(p.hooks, ctx, event)
+	var limitErr error
+	ctx, query, limitErr = applyInteractiveLimits(ctx, query, p.interactiveLimits)
+	if limitErr != nil {
+		event.Err = limitErr
+		telemetrystore.WrapAfterQuery(p.hooks, ctx, event)
+		p.settings.Logger().WarnContext(ctx, "interactive query settings could not be bounded", "error", limitErr)
+		return nil, limitErr
+	}
+	event.Query = query
 	rows, err := p.clickHouseConn.Query(ctx, query, args...)
 	if err != nil {
 		event.Err = err
